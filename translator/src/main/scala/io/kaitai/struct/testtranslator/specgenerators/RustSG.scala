@@ -5,7 +5,7 @@ import _root_.io.kaitai.struct.datatype.{DataType, KSError}
 import _root_.io.kaitai.struct.exprlang.Ast
 import _root_.io.kaitai.struct.languages.RustCompiler
 import _root_.io.kaitai.struct.translators.RustTranslator
-import _root_.io.kaitai.struct.datatype.DataType.{ArrayType, BooleanType, BytesType, EnumType, IntType, SwitchType, UserType}
+import _root_.io.kaitai.struct.datatype.DataType.{ArrayType, BooleanType, BytesType, EnumType, Int1Type, IntType, SwitchType, UserType}
 import _root_.io.kaitai.struct.format.ClassSpecs
 import io.kaitai.struct.testtranslator.Main.CLIOptions
 import io.kaitai.struct.testtranslator.{Main, TestAssert, TestSpec}
@@ -79,11 +79,14 @@ class RustSG(spec: TestSpec, provider: ClassTypeProvider, classSpecs: ClassSpecs
     var expStr = translate(check.expected)
     (actType, expType) match {
       case (at: EnumType, et: EnumType) =>
-        expStr = remove_ref(expStr)
+        expStr = s"&${remove_ref(expStr)}"
+        actStr = translator.remove_deref(actStr)
       case (at: EnumType, et: BooleanType) =>
         expStr = remove_ref(expStr)
       case (at: EnumType, et: IntType) =>
         actStr = s"${translator.remove_deref(actStr)}.clone().to_owned() as u64"
+      case (at: EnumType, et: Int1Type) =>
+        actStr = s"${translator.remove_deref(actStr)}.clone().to_owned() as u8"
       case _ =>
     }
     // fix expStr as vector
@@ -168,7 +171,11 @@ class RustSG(spec: TestSpec, provider: ClassTypeProvider, classSpecs: ClassSpecs
           s"*$ttx2"
         }
       } else {
-        s"${translator.remove_deref(ttx2)}"
+        val ttx3 = s"${translator.remove_deref(ttx2)}"
+        if(last == "to_owned")
+          s"&$ttx3"
+        else
+          ttx3
       }
     } else {
       ttx
