@@ -5,7 +5,7 @@ import _root_.io.kaitai.struct.datatype.{DataType, KSError}
 import _root_.io.kaitai.struct.exprlang.Ast
 import _root_.io.kaitai.struct.languages.RustCompiler
 import _root_.io.kaitai.struct.translators.RustTranslator
-import _root_.io.kaitai.struct.datatype.DataType.{ArrayType, BooleanType, BytesType, EnumType, Int1Type, IntType, SwitchType, UserType}
+import _root_.io.kaitai.struct.datatype.DataType.{BytesType, EnumType, Int1Type, SwitchType, UserType}
 import _root_.io.kaitai.struct.format.ClassSpecs
 import io.kaitai.struct.testtranslator.Main.CLIOptions
 import io.kaitai.struct.testtranslator.{Main, TestAssert, TestSpec}
@@ -73,20 +73,25 @@ class RustSG(spec: TestSpec, provider: ClassTypeProvider, classSpecs: ClassSpecs
   }
 
   override def simpleAssert(check: TestAssert): Unit = {
+    import io.kaitai.struct.datatype.DataType.{BooleanType => DTBooleanType, IntType => DTIntType, NumericType => DTNumericType}
+
     val actType = translator.detectType(check.actual)
     var actStr = translateAct(check.actual)
     val expType = translator.detectType(check.expected)
     var expStr = translate(check.expected)
     (actType, expType) match {
-      case (at: EnumType, et: EnumType) =>
+      case (_: EnumType, _: EnumType) =>
         expStr = s"&${remove_ref(expStr)}"
         actStr = translator.remove_deref(actStr)
-      case (at: EnumType, et: BooleanType) =>
+      case (_: EnumType, _: DTBooleanType) =>
         expStr = remove_ref(expStr)
-      case (at: EnumType, et: IntType) =>
+      case (_: EnumType, _: DTIntType) =>
         actStr = s"${translator.remove_deref(actStr)}.clone().to_owned() as u64"
-      case (at: EnumType, et: Int1Type) =>
+      case (_: EnumType, _: Int1Type) =>
         actStr = s"${translator.remove_deref(actStr)}.clone().to_owned() as u8"
+      case (_, _: DTNumericType) | (_, _: DTBooleanType)=>
+        if(actStr.startsWith("&"))
+          expStr = s"&$expStr"
       case _ =>
     }
     // fix expStr as vector
@@ -191,5 +196,5 @@ class RustSG(spec: TestSpec, provider: ClassTypeProvider, classSpecs: ClassSpecs
   }
 
   def translateAct(x: Ast.expr): String =
-    translate(x).replace(s"self.${Main.INIT_OBJ_NAME}()", "r")
+    translate(x).replaceAll(s"self.${Main.INIT_OBJ_NAME}(\\(\\))?", "r")
 }
