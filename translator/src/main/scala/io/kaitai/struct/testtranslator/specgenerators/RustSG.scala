@@ -99,16 +99,14 @@ class RustSG(spec: TestSpec, provider: ClassTypeProvider, classSpecs: ClassSpecs
       expStr = remove_ref(expStr)
     }
     finish_panic()
-    //TODO: correct code generation
-    actStr = actStr.replace("_io", "reader")
-    actStr = actStr.replace("(reader)?", "(&reader).expect(\"error reading\")")
     out.puts(s"assert_eq!($actStr, $expStr);")
   }
 
   override def nullAssert(actual: Ast.expr): Unit = {
     val actStr = translateAct(actual)
+    val expStr = if(actStr.startsWith("&")) "&0" else "0"
     finish_panic()
-    out.puts(s"assert_eq!($actStr, 0);")
+    out.puts(s"assert_eq!($actStr, $expStr);")
     // TODO: Figure out what's meant to happen here
   }
 
@@ -124,7 +122,8 @@ class RustSG(spec: TestSpec, provider: ClassTypeProvider, classSpecs: ClassSpecs
   }
 
   def translate(x: Ast.expr): String = {
-    val ttx = translator.translate(x)
+    //TODO: correct code generation
+    val ttx = translator.translate(x).replace("_io)?", "&reader).expect(\"error reading\")")
     // append (&reader).unwrap() to instance call
     val dots = ttx.split("\\.")
     var ttx2 = dots(0)
