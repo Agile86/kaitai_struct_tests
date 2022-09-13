@@ -81,8 +81,10 @@ class RustSG(spec: TestSpec, provider: ClassTypeProvider, classSpecs: ClassSpecs
     var expStr = translate(check.expected)
     (actType, expType) match {
       case (_: EnumType, _: EnumType) =>
-        expStr = s"&${remove_ref(expStr)}"
-        actStr = translator.remove_deref(actStr)
+        if (!actStr.endsWith(".unwrap()")) {
+          expStr = s"&${remove_ref(expStr)}"
+          actStr = translator.remove_deref(actStr)
+        }
       case (_: EnumType, _: DTBooleanType) =>
         expStr = remove_ref(expStr)
       case (_: EnumType, _: DTIntType) =>
