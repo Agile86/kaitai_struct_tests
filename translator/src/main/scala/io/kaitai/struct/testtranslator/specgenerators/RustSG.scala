@@ -97,9 +97,14 @@ class RustSG(spec: TestSpec, provider: ClassTypeProvider, classSpecs: ClassSpecs
       case _ =>
     }
     // fix expStr as vector
-    if (actStr.charAt(0) == '*' && expStr.startsWith("&vec![")) {
-      expStr = remove_ref(expStr)
+    if(expStr.startsWith("&vec![")) {
+      if (actStr.charAt(0) == '*') {
+        expStr = remove_ref(expStr)
+      } else {
+        actStr = s"&*$actStr"
+      }
     }
+
     finish_panic()
     out.puts(s"assert_eq!($actStr, $expStr);")
   }
