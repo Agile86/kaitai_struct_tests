@@ -81,7 +81,7 @@ class RustSG(spec: TestSpec, provider: ClassTypeProvider, classSpecs: ClassSpecs
     var expStr = translate(check.expected)
     (actType, expType) match {
       case (_: EnumType, _: EnumType) =>
-        if (!actStr.endsWith(".unwrap()")) {
+        if (actStr.endsWith(".to_owned()")) {
           expStr = s"&${remove_ref(expStr)}"
           actStr = translator.remove_deref(actStr)
         }
@@ -92,8 +92,13 @@ class RustSG(spec: TestSpec, provider: ClassTypeProvider, classSpecs: ClassSpecs
       case (_: EnumType, _: Int1Type) =>
         actStr = s"${translator.remove_deref(actStr)}.clone().to_owned() as u8"
       case (_, _: DTNumericType) | (_, _: DTBooleanType)=>
-        if(actStr.startsWith("&"))
-          expStr = s"&$expStr"
+        if(!(actStr.endsWith(".len()") || actStr.contains("as usize]") || actStr.endsWith(".to_owned()"))) {
+          expStr = translator.ensure_ref(expStr)
+        }
+        actStr = translator.remove_deref(actStr)
+//        if(actStr.startsWith("&")) {
+//          expStr = s"&$expStr"
+//        }
       case _ =>
     }
     // fix expStr as vector
@@ -130,7 +135,10 @@ class RustSG(spec: TestSpec, provider: ClassTypeProvider, classSpecs: ClassSpecs
 
   def translate(x: Ast.expr): String = {
     //TODO: correct code generation
-    val ttx = translator.translate(x).replace("_io)?", "&reader).expect(\"error reading\")")
+    def correctReader(code: String): String =
+      code.replace("_io)?", "&reader).expect(\"error reading\")")
+
+    var ttx = translator.translate(x)
     // append (&reader).unwrap() to instance call
     val dots = ttx.split("\\.")
     var ttx2 = dots(0)
@@ -172,25 +180,17 @@ class RustSG(spec: TestSpec, provider: ClassTypeProvider, classSpecs: ClassSpecs
         } else if (translator.get_param(translator.get_top_class(classSpecs.firstSpec), last).isDefined)  {
           deref = true
         } else {
-          deref = false
+          //aderef = false
         }
       }
-      if (deref) {
-        if (ttx2.charAt(0) == '*') {
-          ttx2
-        } else {
-          s"*$ttx2"
-        }
+      ttx = if (deref) {
+        translator.ensure_deref(ttx2)
       } else {
-        val ttx3 = s"${translator.remove_deref(ttx2)}"
-        if(last == "to_owned")
-          s"&$ttx3"
-        else
-          ttx3
+        s"${translator.remove_deref(ttx2)}"
       }
-    } else {
-      ttx
     }
+
+    correctReader(ttx)
   }
 
   def remove_ref(s: String): String = {
