@@ -5,7 +5,7 @@ import _root_.io.kaitai.struct.datatype.{DataType, KSError}
 import _root_.io.kaitai.struct.exprlang.Ast
 import _root_.io.kaitai.struct.languages.RustCompiler
 import _root_.io.kaitai.struct.translators.RustTranslator
-import _root_.io.kaitai.struct.datatype.DataType.{BytesType, EnumType, Int1Type, SwitchType, UserType}
+import _root_.io.kaitai.struct.datatype.DataType.{BytesType, EnumType, Int1Type, IntType, SwitchType, UserType}
 import _root_.io.kaitai.struct.format.ClassSpecs
 import io.kaitai.struct.testtranslator.Main.CLIOptions
 import io.kaitai.struct.testtranslator.{Main, TestAssert, TestSpec}
@@ -92,7 +92,7 @@ class RustSG(spec: TestSpec, provider: ClassTypeProvider, classSpecs: ClassSpecs
       case (_: EnumType, _: Int1Type) =>
         actStr = s"${translator.remove_deref(actStr)}.clone().to_owned() as u8"
       case (_, _: DTNumericType) | (_, _: DTBooleanType)=>
-        if(!(actStr.endsWith(".len()") || actStr.contains("as usize]") || actStr.endsWith(".to_owned()"))) {
+        if(!(actStr.endsWith(".len()") || actStr.endsWith(".to_owned()") || actStr.endsWith("]"))) {
           expStr = translator.ensure_ref(expStr)
         }
         actStr = translator.remove_deref(actStr)
@@ -105,8 +105,6 @@ class RustSG(spec: TestSpec, provider: ClassTypeProvider, classSpecs: ClassSpecs
     if(expStr.startsWith("&vec![")) {
       if (actStr.charAt(0) == '*') {
         expStr = remove_ref(expStr)
-      } else {
-        actStr = s"&*$actStr"
       }
     }
 
@@ -173,6 +171,7 @@ class RustSG(spec: TestSpec, provider: ClassTypeProvider, classSpecs: ClassSpecs
             case _: SwitchType => false
             case _: UserType => false
             case _: BytesType => false
+            case _: IntType  => false
             case _ => true
           }
         } else if (translator.get_instance(translator.get_top_class(classSpecs.firstSpec), last).isDefined)  {
@@ -180,7 +179,7 @@ class RustSG(spec: TestSpec, provider: ClassTypeProvider, classSpecs: ClassSpecs
         } else if (translator.get_param(translator.get_top_class(classSpecs.firstSpec), last).isDefined)  {
           deref = true
         } else {
-          //aderef = false
+          deref = !(last == "to_string" || last == "to_owned" || last == "as_ref")
         }
       }
       ttx = if (deref) {
