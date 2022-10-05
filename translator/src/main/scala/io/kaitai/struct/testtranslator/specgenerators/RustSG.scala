@@ -138,7 +138,7 @@ class RustSG(spec: TestSpec, provider: ClassTypeProvider, classSpecs: ClassSpecs
   def translate(x: Ast.expr): String = {
     //TODO: correct code generation
     def correctReader(code: String): String =
-      code.replace("_io)?", "&reader).unwrap()").replace(".to_owned()", "")
+      code.replace("_io)?", "&reader).unwrap()")
 
     var ttx = translator.translate(x)
     // append (&reader).unwrap() to instance call
