@@ -79,14 +79,17 @@ class RustSG(spec: TestSpec, provider: ClassTypeProvider, classSpecs: ClassSpecs
     var actStr = translateAct(check.actual)
     val expType = translator.detectType(check.expected)
     var expStr = translate(check.expected)
+/*
     (actType, expType) match {
       case (_: EnumType, _: EnumType) =>
-        if (actStr.endsWith(".to_owned()")) {
+        //if (actStr.endsWith(".to_owned()")) {
           expStr = s"&${remove_ref(expStr)}"
           actStr = translator.remove_deref(actStr)
-        }
-      case (_: EnumType, _: DTBooleanType) =>
-        expStr = remove_ref(expStr)
+//        } else {
+//          actStr = translator.remove_ref(actStr)
+//        }
+//      case (_: EnumType, _: DTBooleanType) =>
+//        expStr = remove_ref(expStr)
       case (_: EnumType, _: DTIntType) =>
         actStr = s"${translator.remove_deref(actStr)}.clone().to_owned() as u64"
       case (_: EnumType, _: Int1Type) =>
@@ -101,6 +104,7 @@ class RustSG(spec: TestSpec, provider: ClassTypeProvider, classSpecs: ClassSpecs
 //        }
       case _ =>
     }
+*/
     // fix expStr as vector
     if(expStr.startsWith("&vec![")) {
       if (actStr.charAt(0) == '*') {
@@ -134,7 +138,7 @@ class RustSG(spec: TestSpec, provider: ClassTypeProvider, classSpecs: ClassSpecs
   def translate(x: Ast.expr): String = {
     //TODO: correct code generation
     def correctReader(code: String): String =
-      code.replace("_io)?", "&reader).expect(\"error reading\")")
+      code.replace("_io)?", "&reader).unwrap()").replace(".to_owned()", "")
 
     var ttx = translator.translate(x)
     // append (&reader).unwrap() to instance call
@@ -171,7 +175,7 @@ class RustSG(spec: TestSpec, provider: ClassTypeProvider, classSpecs: ClassSpecs
             case _: SwitchType => false
             case _: UserType => false
             case _: BytesType => false
-            case _: IntType  => false
+            //case _: IntType  => false
             case _ => true
           }
         } else if (translator.get_instance(translator.get_top_class(classSpecs.firstSpec), last).isDefined)  {
@@ -179,7 +183,7 @@ class RustSG(spec: TestSpec, provider: ClassTypeProvider, classSpecs: ClassSpecs
         } else if (translator.get_param(translator.get_top_class(classSpecs.firstSpec), last).isDefined)  {
           deref = true
         } else {
-          deref = !(last == "to_string" || last == "to_owned" || last == "as_ref")
+          deref = !(last == "to_string" /*|| last == "to_owned"*/ || last == "as_ref")
         }
       }
       ttx = if (deref) {
