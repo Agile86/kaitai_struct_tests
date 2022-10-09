@@ -137,12 +137,14 @@ class RustSG(spec: TestSpec, provider: ClassTypeProvider, classSpecs: ClassSpecs
 
   def translate(x: Ast.expr): String = {
     //TODO: correct code generation
-    def correctReader(code: String): String =
-      code.replace("_io)?", "&reader).unwrap()")
+    def correctReader(code: String): String = {
+      val res = code.replace("_io)?", "&reader).unwrap()")
+      res
+    }
 
     var ttx = translator.translate(x)
     // append (&reader).unwrap() to instance call
-    val dots = ttx.split("\\.")
+    var dots = ttx.split("\\.")
     var ttx2 = dots(0)
     var last = ""
     var last_full = ""
@@ -169,6 +171,22 @@ class RustSG(spec: TestSpec, provider: ClassTypeProvider, classSpecs: ClassSpecs
       if (last == "len" || last_full.contains("[")) {
         deref = false
       } else {
+        if (last != "to_owned") {
+          dots(0) = "*self"
+          val penult = dots.length - 2
+          dots(penult) = dots(penult).substring(0, dots(penult).length - 1)
+          return correctReader(dots.mkString("."))
+        } else {
+          dots(0) = s"*${dots(0).substring(1)}"
+          val (l,r) = dots.splitAt(2)
+          dots = l ++ r.drop(1)
+          val (l1,r1) = dots.splitAt(3)
+          dots = l1 ++ r.take(1) ++ r1
+          dots = dots.take(dots.length - 1)
+          val last = dots.length - 1
+          dots(last) = dots(last).substring(0, dots(last).length - 1)
+          return correctReader(dots.mkString("."))
+        }
         val found = translator.get_attr(translator.get_top_class(classSpecs.firstSpec), last)
         if (found.isDefined) {
           deref = found.get.dataTypeComposite match {
@@ -204,6 +222,8 @@ class RustSG(spec: TestSpec, provider: ClassTypeProvider, classSpecs: ClassSpecs
     }
   }
 
-  def translateAct(x: Ast.expr): String =
-    translate(x).replaceAll(s"self.${Main.INIT_OBJ_NAME}(\\(\\))?", "r")
+  def translateAct(x: Ast.expr): String = {
+    val code = translate(x)
+    code.replaceAll(s"self.${Main.INIT_OBJ_NAME}(\\(\\))?", "r")
+  }
 }
