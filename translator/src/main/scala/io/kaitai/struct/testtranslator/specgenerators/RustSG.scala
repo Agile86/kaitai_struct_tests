@@ -10,6 +10,9 @@ import _root_.io.kaitai.struct.format.ClassSpecs
 import io.kaitai.struct.testtranslator.Main.CLIOptions
 import io.kaitai.struct.testtranslator.{Main, TestAssert, TestSpec}
 
+import scala.util.matching.Regex
+import scala.collection.mutable.ArrayBuffer
+
 class RustSG(spec: TestSpec, provider: ClassTypeProvider, classSpecs: ClassSpecs, options: CLIOptions) extends BaseGenerator(spec) {
   val className: String = RustCompiler.type2class(spec.id)
   val translator = new RustTranslator(provider, RuntimeConfig())
@@ -142,9 +145,53 @@ class RustSG(spec: TestSpec, provider: ClassTypeProvider, classSpecs: ClassSpecs
       res
     }
 
+    def isInstance(item: String): (Boolean, String) = {
+      val ATTR_NAME_RE = "([^()]+)\\(_io\\)?".r
+      val it = ATTR_NAME_RE.findAllMatchIn(item)
+      if (it.hasNext) {
+        val attr = it.next.group(1)
+        val res = translator.get_instance(translator.get_top_class(classSpecs.firstSpec), attr).isDefined
+        (res, attr)
+      } else {
+        (false, "")
+      }
+    }
+
+    def getAttrType(attr: String): Option[DataType] = {
+      val found = translator.get_attr(translator.get_top_class(classSpecs.firstSpec), attr)
+      if (found.isDefined) {
+         Some(found.get.dataTypeComposite)
+      } else {
+        None
+      }
+    }
+
     var ttx = translator.translate(x)
     // append (&reader).unwrap() to instance call
-    var dots = ttx.split("\\.")
+    var dots = ttx.split("\\.").to[ArrayBuffer]
+    var deref = true
+    val lastNo = dots.length - 1
+    for (i <- 1 to lastNo) {
+      val (inst, attr) = isInstance(dots(i))
+      if (inst) {
+        dots(i) = s"$attr(&reader).unwrap()"
+      }
+      if (i == lastNo) {
+        if (attr == "len" || dots(i).contains("[")) {
+          deref = false
+        } else {
+          val opt_type = getAttrType(attr)
+          deref = opt_type.isDefined && !translator.is_copy_type(opt_type.get)
+        }
+        dots(i) = if (deref) {
+          translator.ensure_deref(dots(i))
+        } else {
+          s"${translator.remove_deref(dots(i))}"
+        }
+      }
+    }
+
+    return dots.mkString(".")
     var ttx2 = dots(0)
     var last = ""
     var last_full = ""
