@@ -6,12 +6,13 @@ import _root_.io.kaitai.struct.exprlang.Ast
 import _root_.io.kaitai.struct.languages.RustCompiler
 import _root_.io.kaitai.struct.translators.RustTranslator
 import _root_.io.kaitai.struct.datatype.DataType.{BytesType, EnumType, Int1Type, IntType, SwitchType, UserType}
-import _root_.io.kaitai.struct.format.ClassSpecs
+import _root_.io.kaitai.struct.format.{ClassSpecs, NamedIdentifier}
 import io.kaitai.struct.testtranslator.Main.CLIOptions
 import io.kaitai.struct.testtranslator.{Main, TestAssert, TestSpec}
 
 import scala.util.matching.Regex
 import scala.collection.mutable.ArrayBuffer
+import scala.util.control.Breaks.{break, breakable}
 
 class RustSG(spec: TestSpec, provider: ClassTypeProvider, classSpecs: ClassSpecs, options: CLIOptions) extends BaseGenerator(spec) {
   val className: String = RustCompiler.type2class(spec.id)
@@ -146,7 +147,7 @@ class RustSG(spec: TestSpec, provider: ClassTypeProvider, classSpecs: ClassSpecs
     }
 
     def isInstance(item: String): (Boolean, String) = {
-      val ATTR_NAME_RE = "([^()]+)\\(_io\\)?".r
+      val ATTR_NAME_RE = "([^()]+)\\((_io)*\\)?".r
       val it = ATTR_NAME_RE.findAllMatchIn(item)
       if (it.hasNext) {
         val attr = it.next.group(1)
@@ -168,25 +169,52 @@ class RustSG(spec: TestSpec, provider: ClassTypeProvider, classSpecs: ClassSpecs
 
     var ttx = translator.translate(x)
     // append (&reader).unwrap() to instance call
-    var dots = ttx.split("\\.").to[ArrayBuffer]
-    var deref = true
+    var dots = ArrayBuffer[String]() ++= ttx.split("\\.")
     val lastNo = dots.length - 1
     for (i <- 1 to lastNo) {
+      var deref = true
       val (inst, attr) = isInstance(dots(i))
-      if (inst) {
-        dots(i) = s"$attr(&reader).unwrap()"
-      }
+
+      dots(i) = dots(i).replace("_io)?", "&reader).unwrap().to_owned())")
+      var removeMut = !(inst || ((i > 2) && dots(i).startsWith("to_owned")))
+
       if (i == lastNo) {
         if (attr == "len" || dots(i).contains("[")) {
           deref = false
         } else {
+//          val attrMember = translator.findMember(attr)
+//          if (attrMember.isDefined) {
+//            val valType = translator.provider.determineType(attrMember.get._1, attr)
+//            val (res, _, _) = RustCompiler.attributeNativeType(NamedIdentifier(attr), valType, provider.asInstanceOf[ClassTypeProvider], false)
+//            deref = res.startsWith("Ref<")
+//          }
           val opt_type = getAttrType(attr)
-          deref = opt_type.isDefined && !translator.is_copy_type(opt_type.get)
+          deref = opt_type.isDefined && translator.is_copy_type(opt_type.get)
         }
-        dots(i) = if (deref) {
-          translator.ensure_deref(dots(i))
+
+        if (removeMut) {
+          val j = dots.indexOf("to_owned())")
+          if (j > 0) {
+            dots(j) = "to_owned()"
+          }
         } else {
-          s"${translator.remove_deref(dots(i))}"
+          dots(lastNo - 1) = dots(lastNo - 1).replace("))", ")")
+          dots.remove(lastNo)
+          dots.remove(dots.indexOf("to_owned())"))
+          val j = dots.lastIndexWhere{ _.endsWith("to_owned())") }
+          dots(j) = dots(j).replace(".to_owned())", "")
+        }
+
+        var first = if (removeMut) {
+          dots(0).replace("(&mut ", "")
+        } else {
+          dots(0).replace("((", "*(")
+        }
+
+        dots(0) = if (deref) {
+          translator.ensure_deref(first, forSelfOnly = false)
+        } else {
+          s"${translator.remove_deref(first)}"
         }
       }
     }
