@@ -21,7 +21,7 @@ class RustSG(spec: TestSpec, provider: ClassTypeProvider, classSpecs: ClassSpecs
     val use_mod = if (options.unitTest)
                     s"use crate::"
                   else
-                    s"use "
+                    s"mod formats;\nuse "
     var imports = ""
     spec.extraImports.foreach{ name => imports = s"$imports\n${use_mod}formats::$name::*;"  }
 
@@ -30,7 +30,6 @@ class RustSG(spec: TestSpec, provider: ClassTypeProvider, classSpecs: ClassSpecs
           |
           |extern crate kaitai;
           |use self::kaitai::*;
-          |mod formats;
           |${use_mod}formats::${spec.id}::*;
           |$imports
           |
