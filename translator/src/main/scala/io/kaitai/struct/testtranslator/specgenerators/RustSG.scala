@@ -151,7 +151,10 @@ class RustSG(spec: TestSpec, provider: ClassTypeProvider, classSpecs: ClassSpecs
           deref = found.get.dataTypeComposite match {
             case _: SwitchType => false
             case _: UserType => false
-            case _: BytesType => false
+            case _: BytesType => {
+              ttx2 = s"$ttx2.as_slice()"
+              false
+            }
             case _ => true
           }
         } else if (translator.get_instance(translator.get_top_class(classSpecs.firstSpec), last).isDefined)  {
