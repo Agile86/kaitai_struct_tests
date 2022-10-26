@@ -37,7 +37,7 @@ class RustSG(spec: TestSpec, provider: ClassTypeProvider, classSpecs: ClassSpecs
           |fn test_${spec.id}() {
           |    let bytes = fs::read("../../src/${spec.data}").unwrap();
           |    let reader = BytesReader::new(&bytes);
-          |    let mut r = $className::default();
+          |    let r = $className::default();
           |
           |    if let Err(err) = r.read(&reader, None, Some(KStructUnit::parent_stack())) {""".stripMargin
     out.puts(code)
