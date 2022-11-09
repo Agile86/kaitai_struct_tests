@@ -21,7 +21,7 @@ class RustSG(spec: TestSpec, provider: ClassTypeProvider, classSpecs: ClassSpecs
     val use_mod = if (options.unitTest)
                     s"use crate::"
                   else
-                    s"use "
+                    s"mod formats;\nuse "
     var imports = ""
     spec.extraImports.foreach{ name => imports = s"$imports\n${use_mod}formats::$name::*;"  }
 
@@ -93,8 +93,11 @@ class RustSG(spec: TestSpec, provider: ClassTypeProvider, classSpecs: ClassSpecs
     }
     finish_panic()
     //TODO: correct code generation
-    actStr = actStr.replace("_io", "reader")
-    actStr = actStr.replace("(reader)?", "(&reader).expect(\"error reading\")")
+    if (actStr.contains("_io,") && (actStr.charAt(0) != '*'))
+      actStr = s"*$actStr"
+
+    actStr = actStr.replace("_io,", "&reader,")
+    actStr = actStr.replace(")?", ").expect(\"error reading\")")
     out.puts(s"assert_eq!($actStr, $expStr);")
   }
 
