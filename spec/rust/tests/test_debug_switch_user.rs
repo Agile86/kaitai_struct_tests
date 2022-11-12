@@ -10,14 +10,14 @@ use formats::debug_switch_user::*;
 fn basic_parse() {
     let bytes = fs::read("../../src/nav_parent_switch.bin").unwrap();
     let reader = BytesReader::new(&bytes);
-    let mut r = DebugSwitchUser::default();
+    let r = DebugSwitchUser::default();
     {
         let res = r.read(&reader, None, Some(KStructUnit::parent_stack()));
         assert!(res.is_ok());
     }
 
     assert_eq!(*r.code(), 1);
-    if let DebugSwitchUser_Data::DebugSwitchUser_One(s) =  r.data() {
+    if let DebugSwitchUser_Data::DebugSwitchUser_One(s) =  r.data().as_ref().unwrap() {
         assert_eq!(*s.val(), -190);
     } else {
         panic!("expected enum DebugSwitchUser_Data");
