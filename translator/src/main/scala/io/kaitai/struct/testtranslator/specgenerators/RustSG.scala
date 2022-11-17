@@ -96,7 +96,8 @@ class RustSG(spec: TestSpec, provider: ClassTypeProvider, classSpecs: ClassSpecs
     if (actStr.contains("_io,") && (actStr.charAt(0) != '*'))
       actStr = s"*$actStr"
 
-    actStr = actStr.replace("_io,", "&reader,")
+    actStr = actStr.replace("_io, ", "&reader, ")
+    actStr = actStr.replace(", self.get_root(_root)", ", None")
     actStr = actStr.replace(")?", ").expect(\"error reading\")")
     out.puts(s"assert_eq!($actStr, $expStr);")
   }
