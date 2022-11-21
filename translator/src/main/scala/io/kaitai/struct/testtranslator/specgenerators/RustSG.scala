@@ -14,6 +14,7 @@ class RustSG(spec: TestSpec, provider: ClassTypeProvider, classSpecs: ClassSpecs
   val className: String = RustCompiler.type2class(spec.id)
   val translator = new RustTranslator(provider, RuntimeConfig())
   var do_panic = true
+  var do_not_deref = false
 
   override def fileName(name: String): String = s"test_$name.rs"
 
@@ -72,6 +73,19 @@ class RustSG(spec: TestSpec, provider: ClassTypeProvider, classSpecs: ClassSpecs
     out.puts("}")
   }
 
+  def correctIO(code: String): String = {
+    var s = if (!do_not_deref) {
+      if (code.contains("_io,") && (code.charAt(0) != '*'))  s"*$code" else code
+    } else {
+      code
+    }
+
+    s = s.replace("_io, ", "&reader, ")
+    s = s.replace(", self.get_root(_root)", ", None")
+    s = s.replace(")?", ").expect(\"error reading\")")
+    s
+  }
+
   override def simpleAssert(check: TestAssert): Unit = {
     val actType = translator.detectType(check.actual)
     var actStr = translateAct(check.actual)
@@ -93,17 +107,13 @@ class RustSG(spec: TestSpec, provider: ClassTypeProvider, classSpecs: ClassSpecs
     }
     finish_panic()
     //TODO: correct code generation
-    if (actStr.contains("_io,") && (actStr.charAt(0) != '*'))
-      actStr = s"*$actStr"
+    actStr = correctIO(actStr)
 
-    actStr = actStr.replace("_io, ", "&reader, ")
-    actStr = actStr.replace(", self.get_root(_root)", ", None")
-    actStr = actStr.replace(")?", ").expect(\"error reading\")")
     out.puts(s"assert_eq!($actStr, $expStr);")
   }
 
   override def nullAssert(actual: Ast.expr): Unit = {
-    val actStr = translateAct(actual)
+    val actStr = correctIO(translateAct(actual))
     finish_panic()
     out.puts(s"assert_eq!($actStr, 0);")
     // TODO: Figure out what's meant to happen here
@@ -147,18 +157,18 @@ class RustSG(spec: TestSpec, provider: ClassTypeProvider, classSpecs: ClassSpecs
     // do we need to deref?
     if (last.nonEmpty) {
       var deref = true
-      if (last == "len" || last_full.contains("[")) {
+      if (last == "len" || last_full.contains("[") || last == "as_str") {
         deref = false
+        do_not_deref = true
       } else {
         val found = translator.get_attr(translator.get_top_class(classSpecs.firstSpec), last)
         if (found.isDefined) {
           deref = found.get.dataTypeComposite match {
             case _: SwitchType => false
             case _: UserType => false
-            case _: BytesType => {
+            case _: BytesType =>
               ttx2 = s"$ttx2.as_slice()"
               false
-            }
             case _ => true
           }
         } else if (translator.get_instance(translator.get_top_class(classSpecs.firstSpec), last).isDefined)  {
