@@ -140,16 +140,16 @@ class RustSG(spec: TestSpec, provider: ClassTypeProvider, classSpecs: ClassSpecs
     dots.drop(1).foreach {
       attr_full =>
         last_full = attr_full
-        val ind = attr_full indexOf "()"
+        val ind = attr_full indexOf "("
         if (ind > 0) {
           val attr = attr_full.substring(0, ind)
           last = attr
-          val found = translator.get_instance(translator.get_top_class(classSpecs.firstSpec), attr)
-          if (found.isDefined) {
-            ttx2 = s"$ttx2.$attr(&reader, Some(&r)).unwrap()${attr_full.substring(ind + 2, attr_full.length())}"
-          } else {
+//          val found = translator.get_instance(translator.get_top_class(classSpecs.firstSpec), attr)
+//          if (found.isDefined) {
+//            ttx2 = s"$ttx2.$attr(&reader, Some(&r)).unwrap()${attr_full.substring(ind + 2, attr_full.length())}"
+//          } else {
             ttx2 = s"$ttx2.$attr_full"
-          }
+//          }
         } else {
           ttx2 = s"$ttx2.$attr_full"
         }
