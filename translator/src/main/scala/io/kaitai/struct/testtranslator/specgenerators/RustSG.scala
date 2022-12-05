@@ -38,9 +38,9 @@ class RustSG(spec: TestSpec, provider: ClassTypeProvider, classSpecs: ClassSpecs
           |fn test_${spec.id}() {
           |    let bytes = fs::read("../../src/${spec.data}").unwrap();
           |    let reader = BytesReader::new(&bytes);
-          |    let r = $className::default();
+          |    let r = std::rc::Rc::new($className::default());
           |
-          |    if let Err(err) = r.read(&reader, None, Some(KStructUnit::parent_stack())) {""".stripMargin
+          |    if let Err(err) = r.read(&reader, r.clone(), Some(KStructUnit::parent_stack())) {""".stripMargin
     out.puts(code)
     out.inc
   }
@@ -81,7 +81,7 @@ class RustSG(spec: TestSpec, provider: ClassTypeProvider, classSpecs: ClassSpecs
     }
 
     s = s.replace("_io, ", "&reader, ")
-    s = s.replace(", self.get_root(_root)", ", None")
+    s = s.replace(", self._root", ", r._root.borrow().upgrade().unwrap()")
     s = s.replace(")?", ").expect(\"error reading\")")
     s
   }
