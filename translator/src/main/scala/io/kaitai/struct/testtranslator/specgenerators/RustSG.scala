@@ -82,6 +82,7 @@ class RustSG(spec: TestSpec, provider: ClassTypeProvider, classSpecs: ClassSpecs
 
     s = s.replace("_io, ", "&reader, ")
     s = s.replace(", self._root", ", r._root.borrow().upgrade().unwrap()")
+    s = s.replace(", None", ", r._root.borrow().upgrade().unwrap()")
     s = s.replace(")?", ").expect(\"error reading\")")
     s
   }
