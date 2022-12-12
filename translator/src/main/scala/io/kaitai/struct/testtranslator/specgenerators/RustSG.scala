@@ -40,7 +40,7 @@ class RustSG(spec: TestSpec, provider: ClassTypeProvider, classSpecs: ClassSpecs
           |    let reader = BytesReader::new(&bytes);
           |    let r = std::rc::Rc::new($className::default());
           |
-          |    if let Err(err) = r.read(&reader, r.clone(), Some(KStructUnit::parent_stack())) {""".stripMargin
+          |    if let Err(err) = r.read(&reader, Some(r.clone()), Some(KStructUnit::parent_stack())) {""".stripMargin
     out.puts(code)
     out.inc
   }
@@ -81,8 +81,8 @@ class RustSG(spec: TestSpec, provider: ClassTypeProvider, classSpecs: ClassSpecs
     }
 
     s = s.replace("_io, ", "&reader, ")
-    s = s.replace(", self._root", ", r._root.borrow().upgrade().unwrap()")
-    s = s.replace(", None", ", r._root.borrow().upgrade().unwrap()")
+    s = s.replace(", self._root", ", Some(r._root.borrow().upgrade().unwrap())")
+    s = s.replace(", None", ", Some(r._root.borrow().upgrade().unwrap())")
     s = s.replace(")?", ").expect(\"error reading\")")
     s
   }
