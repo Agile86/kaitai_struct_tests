@@ -13,7 +13,6 @@ import io.kaitai.struct.testtranslator.{Main, TestAssert, TestSpec}
 class RustSG(spec: TestSpec, provider: ClassTypeProvider, classSpecs: ClassSpecs, options: CLIOptions) extends BaseGenerator(spec) {
   val className: String = RustCompiler.type2class(spec.id)
   val translator = new RustTranslator(provider, RuntimeConfig())
-  var do_panic = true
   var do_not_deref = false
 
   override def fileName(name: String): String = s"test_$name.rs"
@@ -24,31 +23,37 @@ class RustSG(spec: TestSpec, provider: ClassTypeProvider, classSpecs: ClassSpecs
                   else
                     s"mod formats;\nuse "
     var imports = ""
-    spec.extraImports.foreach{ name => imports = s"$imports\n${use_mod}formats::$name::*;"  }
+    spec.extraImports.foreach{ name => imports = s"$imports\n    ${use_mod}formats::$name::*;" }
 
     val code =
-      s"""|use std::fs;
+      s"""|#[cfg(test)]
+          |mod tests {
+          |    use std::{fs, rc::Rc};
           |
-          |extern crate kaitai;
-          |use self::kaitai::*;
-          |${use_mod}formats::${spec.id}::*;
-          |$imports
+          |    extern crate kaitai;
+          |    use self::kaitai::*;
+          |    ${use_mod}formats::${spec.id}::*;
+          |    $imports
           |
-          |#[test]
-          |fn test_${spec.id}() {
-          |    let bytes = fs::read("../../src/${spec.data}").unwrap();
-          |    let reader = BytesReader::new(&bytes);
-          |    let r = std::rc::Rc::new($className::default());
+          |    #[test]
+          |    fn test_${spec.id}() {
+          |        let bytes = fs::read("../../src/${spec.data}").unwrap();
+          |        let reader = BytesReader::new(&bytes);
+          |        let res = $className::read_into(&reader, None, None);
+          |        let r: Rc<$className>;
           |
-          |    if let Err(err) = r.read(&reader, Some(r.clone()), Some(KStructUnit::parent_stack())) {""".stripMargin
+          |        if let Err(err)  = res {
+          |            panic!("{:?}", err);
+          |        } else {
+          |            r = res.unwrap();
+          |        }""".stripMargin
     out.puts(code)
     out.inc
   }
 
   override def runParse(): Unit = {
-    finish_panic()
+    out.inc
   }
-
   override def runParseExpectError(exception: KSError): Unit = {
     val code =
       s"""    println!("expected err: {:?}, exception: $exception", err);
@@ -56,19 +61,11 @@ class RustSG(spec: TestSpec, provider: ClassTypeProvider, classSpecs: ClassSpecs
       |        panic!("no expected exception: $exception");
       |    }""".stripMargin
     out.puts(code)
-    do_panic = false
   }
 
-  def finish_panic(): Unit = {
-    if (do_panic) {
-      out.inc
-      out.puts("panic!(\"{:?}\", err);")
-      out.dec
-      out.puts("}")
-      do_panic = false
-    }
-  }
   override def footer(): Unit = {
+    out.dec
+    out.puts("}")
     out.dec
     out.puts("}")
   }
@@ -106,7 +103,6 @@ class RustSG(spec: TestSpec, provider: ClassTypeProvider, classSpecs: ClassSpecs
     if (actStr.charAt(0) == '*' && expStr.startsWith("&vec![")) {
       expStr = remove_ref(expStr)
     }
-    finish_panic()
     //TODO: correct code generation
     actStr = correctIO(actStr)
 
@@ -115,7 +111,6 @@ class RustSG(spec: TestSpec, provider: ClassTypeProvider, classSpecs: ClassSpecs
 
   override def nullAssert(actual: Ast.expr): Unit = {
     val actStr = correctIO(translateAct(actual))
-    finish_panic()
     out.puts(s"assert_eq!($actStr, 0);")
     // TODO: Figure out what's meant to happen here
   }
