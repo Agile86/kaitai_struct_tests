@@ -40,6 +40,8 @@ class TestTranslator(options: CLIOptions) {
     val path = Path.of(ts)
     val testName = if(path.isAbsolute) { path.getFileName.toString } else { ts }
 
+    Console.println(s"testName: $testName")
+
     val testSpec = loadTestSpec(testName)
     val classSpecs = loadClassSpecs(testName)
     val initObj = classSpecs(INIT_OBJ_TYPE)
@@ -101,6 +103,7 @@ class TestTranslator(options: CLIOptions) {
         encoding = None,
         forceDebug = false,
         opaqueTypes = None,
+        zeroCopySubstream = None,
         imports = List()
       ),
       DocSpec.EMPTY,
