@@ -38,8 +38,8 @@ class RustSG(spec: TestSpec, provider: ClassTypeProvider, classSpecs: ClassSpecs
           |    #[test]
           |    fn test_${spec.id}() {
           |        let bytes = fs::read("../../src/${spec.data}").unwrap();
-          |        let reader = BytesReader::new(&bytes);
-          |        let res = $className::read_into(&reader, None, None);
+          |        let _io = &BytesReader::new(&bytes);
+          |        let res = $className::read_into(_io, None, None);
           |        let r: Rc<$className>;
           |
           |        if let Err(err)  = res {
@@ -77,7 +77,6 @@ class RustSG(spec: TestSpec, provider: ClassTypeProvider, classSpecs: ClassSpecs
       code
     }
 
-    s = s.replace("_io, ", "&reader, ")
     s = s.replace(", self._root", ", Some(r._root.borrow().upgrade().unwrap())")
     s = s.replace(", None", ", Some(r._root.borrow().upgrade().unwrap())")
     s = s.replace(")?", ").expect(\"error reading\")")
@@ -153,7 +152,7 @@ class RustSG(spec: TestSpec, provider: ClassTypeProvider, classSpecs: ClassSpecs
     // do we need to deref?
     if (last.nonEmpty) {
       var deref = true
-      if (last == "len" || last_full.contains("[") || last == "as_str") {
+      if (last == "len" || last_full.contains("[")) {
         deref = false
         do_not_deref = true
       } else {
