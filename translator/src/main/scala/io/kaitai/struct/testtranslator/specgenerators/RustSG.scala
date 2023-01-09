@@ -22,29 +22,30 @@ class RustSG(spec: TestSpec, provider: ClassTypeProvider, classSpecs: ClassSpecs
     val use_mod = if (options.unitTest)
                     s"use crate::"
                   else
-                    s"use "
+                    s"mod formats;\nuse "
     var imports = ""
-    spec.extraImports.foreach{ name => imports = s"$imports\n${use_mod}formats::$name::*;"  }
+    spec.extraImports.foreach{ name => imports = s"$imports\n    ${use_mod}formats::$name::*;" }
 
     val code =
       s"""|#![allow(unused_variables)]
           |#![allow(unused_assignments)]
-          |use std::{fs, rc::Rc};
+          |#[cfg(test)]
+          |mod tests {
+          |    use std::{fs, rc::Rc};
           |
-          |extern crate kaitai;
-          |use self::kaitai::*;
-          |mod formats;
-          |${use_mod}formats::${spec.id}::*;
-          |$imports
+          |    extern crate kaitai;
+          |    use self::kaitai::*;
+          |    ${use_mod}formats::${spec.id}::*;
+          |    $imports
           |
-          |#[test]
-          |fn test_${spec.id}() {
-          |    let bytes = fs::read("../../src/${spec.data}").unwrap();
-          |    let reader = BytesReader::new(&bytes);
-          |    let res = $className::read_into(&reader, None, None);
-          |    let r : Rc<$className>;
+          |    #[test]
+          |    fn test_${spec.id}() {
+          |        let bytes = fs::read("../../src/${spec.data}").unwrap();
+          |        let _io = &BytesReader::new(&bytes);
+          |        let res: KResult<Rc<$className>> = $className::read_into(_io, None, None);
+          |        let r: Rc<$className>;
           |
-          |    if let Err(err) = res {""".stripMargin
+          |        if let Err(err) = res {""".stripMargin
     out.puts(code)
     out.inc
   }
@@ -55,10 +56,10 @@ class RustSG(spec: TestSpec, provider: ClassTypeProvider, classSpecs: ClassSpecs
 
   override def runParseExpectError(exception: KSError): Unit = {
     val code =
-      s"""    println!("expected err: {:?}, exception: $exception", err);
-      |    } else {
-      |        r = res.unwrap(); // need here to help Rust with type decision
-      |        panic!("no expected exception: $exception");
+      s"""        println!("expected err: {:?}, exception: $exception", err);
+      |        } else {
+      |            panic!("no expected exception: $exception");
+      |        }
       |    }""".stripMargin
     out.puts(code)
     do_panic = false
@@ -89,7 +90,6 @@ class RustSG(spec: TestSpec, provider: ClassTypeProvider, classSpecs: ClassSpecs
       code
     }
 
-    s = s.replace("_io", "&reader")
     s = s.replace(")?", ").expect(\"error reading\")")
     s
   }
@@ -161,7 +161,7 @@ class RustSG(spec: TestSpec, provider: ClassTypeProvider, classSpecs: ClassSpecs
         deref = false
         do_not_deref = true
       } else {
-        deref = translator.need_deref(last, classSpecs.firstSpec)
+        deref = translator.need_deref(last)
       }
       if (deref) {
         if (ttx2.charAt(0) == '*') {
