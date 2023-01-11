@@ -51,6 +51,7 @@ class RustSG(spec: TestSpec, provider: ClassTypeProvider, classSpecs: ClassSpecs
   }
 
   override def runParse(): Unit = {
+    out.inc
     finish_panic()
   }
 
@@ -73,12 +74,16 @@ class RustSG(spec: TestSpec, provider: ClassTypeProvider, classSpecs: ClassSpecs
       out.puts("} else {")
       out.inc
       out.puts("r = res.unwrap();")
-      out.dec
-      out.puts("}")
+//      out.dec
+//      out.puts("}")
       do_panic = false
     }
   }
   override def footer(): Unit = {
+    out.dec
+    out.puts("}")
+    out.dec
+    out.puts("}")
     out.dec
     out.puts("}")
   }
