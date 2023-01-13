@@ -19,24 +19,24 @@ class RustSG(spec: TestSpec, provider: ClassTypeProvider, classSpecs: ClassSpecs
   override def fileName(name: String): String = s"test_$name.rs"
 
   override def header(): Unit = {
-    val use_mod = if (options.unitTest)
-                    s"use crate::"
-                  else
-                    s"mod formats;\nuse "
+    val use_mod = if (!options.unitTest) "mod formats;" else ""
     var imports = ""
-    spec.extraImports.foreach{ name => imports = s"$imports\n    ${use_mod}formats::$name::*;" }
+    spec.extraImports.foreach{ name => imports = s"$imports\n    use crate::formats::$name::*;" }
 
     val code =
       s"""|#![allow(unused_variables)]
           |#![allow(unused_assignments)]
+          |#![allow(unused_imports)]
+          |
+          |$use_mod
+          |
           |#[cfg(test)]
           |mod tests {
           |    use std::{fs, rc::Rc};
           |
           |    extern crate kaitai;
           |    use self::kaitai::*;
-          |    ${use_mod}formats::${spec.id}::*;
-          |    $imports
+          |    use crate::formats::${spec.id}::*;$imports
           |
           |    #[test]
           |    fn test_${spec.id}() {
@@ -82,10 +82,12 @@ class RustSG(spec: TestSpec, provider: ClassTypeProvider, classSpecs: ClassSpecs
   override def footer(): Unit = {
     out.dec
     out.puts("}")
-    out.dec
-    out.puts("}")
-    out.dec
-    out.puts("}")
+    if (out.indentLevel > 0) {
+      out.dec
+      out.puts("}")
+      out.dec
+      out.puts("}")
+    }
   }
 
   def correctIO(code: String): String = {
