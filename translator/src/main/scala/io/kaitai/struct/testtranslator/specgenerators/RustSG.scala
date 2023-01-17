@@ -165,7 +165,7 @@ class RustSG(spec: TestSpec, provider: ClassTypeProvider, classSpecs: ClassSpecs
     if (last.nonEmpty) {
       var deref = true
       if (last == "len" || last_full.contains("[")) {
-        deref = false
+        deref = dots.take(dots.size - 1).last.contains("[")
         do_not_deref = true
       } else {
         deref = translator.need_deref(last)
