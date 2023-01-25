@@ -168,7 +168,8 @@ class RustSG(spec: TestSpec, provider: ClassTypeProvider, classSpecs: ClassSpecs
         deref = dots.take(dots.size - 1).last.contains("[")
         do_not_deref = true
       } else {
-        deref = translator.need_deref(last)
+        if (last != "bytes")
+          deref = translator.need_deref(last)
       }
       if (deref) {
         if (ttx2.charAt(0) == '*') {
