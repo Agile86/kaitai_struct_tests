@@ -97,7 +97,8 @@ class RustSG(spec: TestSpec, provider: ClassTypeProvider, classSpecs: ClassSpecs
       code
     }
 
-    s = s.replace(")?", ").expect(\"error reading\")")
+    s = s.replaceFirst("""\)\?""", ").expect(\"error reading\").as_ref().unwrap()")
+    s = s.replace(")?", ").expect(\"error getting\")")
     s
   }
 
