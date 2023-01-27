@@ -39,7 +39,7 @@ class RustSG(spec: TestSpec, provider: ClassTypeProvider, classSpecs: ClassSpecs
           |    use crate::formats::${spec.id}::*;$imports
           |
           |    #[test]
-          |    fn test_${spec.id}() {
+          |    fn test_${spec.id}() -> Result<(), KError> {
           |        let bytes = fs::read("../../src/${spec.data}").unwrap();
           |        let _io = &BytesReader::new(&bytes);
           |        let res: KResult<Rc<$className>> = $className::read_into(_io, None, None);
@@ -56,12 +56,13 @@ class RustSG(spec: TestSpec, provider: ClassTypeProvider, classSpecs: ClassSpecs
   }
 
   override def runParseExpectError(exception: KSError): Unit = {
+    out.inc
     val code =
-      s"""        println!("expected err: {:?}, exception: $exception", err);
-      |        } else {
-      |            panic!("no expected exception: $exception");
-      |        }
-      |    }""".stripMargin
+      s"""    println!("expected err: {:?}, exception: $exception", err);
+          |        } else {
+          |            panic!("no expected exception: $exception");
+          |        }
+          |""".stripMargin
     out.puts(code)
     do_panic = false
   }
@@ -80,26 +81,20 @@ class RustSG(spec: TestSpec, provider: ClassTypeProvider, classSpecs: ClassSpecs
     }
   }
   override def footer(): Unit = {
-    out.dec
-    out.puts("}")
-    if (out.indentLevel > 0) {
-      out.dec
-      out.puts("}")
+    while (out.indentLevel > 0) {
+      if(out.indentLevel == 2)
+        out.puts("Ok(())")
       out.dec
       out.puts("}")
     }
   }
 
   def correctIO(code: String): String = {
-    var s = if (!do_not_deref) {
+    if (!do_not_deref) {
       if (code.contains("_io,") && (code.charAt(0) != '*'))  s"*$code" else code
     } else {
       code
     }
-
-    s = s.replaceFirst("""\)\?""", ").expect(\"error reading\").as_ref().unwrap()")
-    s = s.replace(")?", ").expect(\"error getting\")")
-    s
   }
 
   override def simpleAssert(check: TestAssert): Unit = {
