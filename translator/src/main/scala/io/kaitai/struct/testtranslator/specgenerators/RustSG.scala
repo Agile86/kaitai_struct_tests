@@ -138,6 +138,7 @@ class RustSG(spec: TestSpec, provider: ClassTypeProvider, classSpecs: ClassSpecs
 
   override def results: String = {
     "// " + AUTOGEN_COMMENT + "\n\n" +
+      importList.toList.mkString("", "\n", "\n") + "\n" +
       out.result
   }
 
@@ -190,5 +191,5 @@ class RustSG(spec: TestSpec, provider: ClassTypeProvider, classSpecs: ClassSpecs
   }
 
   def translateAct(x: Ast.expr): String =
-    translate(x).replace(s"self.${Main.INIT_OBJ_NAME}()", "r")
+    translate(x).replace(s"self.${Main.INIT_OBJ_NAME}().as_ref().unwrap()", "r")
 }

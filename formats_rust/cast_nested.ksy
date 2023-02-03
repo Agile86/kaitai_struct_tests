@@ -1,10 +1,18 @@
 meta:
-  id: switch_cast_parent
+  id: cast_nested
 seq:
   - id: opcodes
     type: opcode
     repeat: eos
-
+instances:
+  opcodes_0_str:
+    value: opcodes[0].body.as<opcode::strval>
+  opcodes_0_str_value:
+    value: opcodes[0].body.as<opcode::strval>.value
+  opcodes_1_int:
+    value: opcodes[1].body.as<opcode::intval>
+  opcodes_1_int_value:
+    value: opcodes[1].body.as<opcode::intval>.value
 types:
   opcode:
     seq:
