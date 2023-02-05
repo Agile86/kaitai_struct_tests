@@ -41,7 +41,7 @@ class RustSG(spec: TestSpec, provider: ClassTypeProvider, classSpecs: ClassSpecs
           |    #[test]
           |    fn test_${spec.id}() -> Result<(), KError> {
           |        let bytes = fs::read("../../src/${spec.data}").unwrap();
-          |        let _io = &BytesReader::new(&bytes);
+          |        let _io = &BytesReader::from(bytes);
           |        let res: KResult<Rc<$className>> = $className::read_into(_io, None, None);
           |        let r: Rc<$className>;
           |
@@ -190,6 +190,9 @@ class RustSG(spec: TestSpec, provider: ClassTypeProvider, classSpecs: ClassSpecs
     }
   }
 
-  def translateAct(x: Ast.expr): String =
-    translate(x).replace(s"self.${Main.INIT_OBJ_NAME}().as_ref().unwrap()", "r")
+  def translateAct(x: Ast.expr): String = {
+    var code = translate(x)
+    code = code.replace(s"self.${Main.INIT_OBJ_NAME}()", "r")
+    code.replace("r.as_ref().unwrap()", "r")
+  }
 }
