@@ -42,8 +42,8 @@ class RustSG(spec: TestSpec, provider: ClassTypeProvider, classSpecs: ClassSpecs
           |    fn test_${spec.id}() -> Result<(), KError> {
           |        let bytes = fs::read("../../src/${spec.data}").unwrap();
           |        let _io = &BytesReader::from(bytes);
-          |        let res: KResult<Rc<$className>> = $className::read_into(_io, None, None);
-          |        let r: Rc<$className>;
+          |        let res: KResult<OptRc<$className>> = $className::read_into(_io, None, None);
+          |        let r: OptRc<$className>;
           |
           |        if let Err(err) = res {""".stripMargin
     out.puts(code)
